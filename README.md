@@ -1,4 +1,4 @@
-# geomagnetic
+# Geomagnetic
 Predicting Geomagnetic Storms: Interactive Report
 Overview
 
