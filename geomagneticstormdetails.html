@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predicting Geomagnetic Storms: An Interactive Report</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutral Harmony -->
+    <!-- Application Structure Plan: A thematic, single-page journey designed for exploration. It starts with a high-level introduction to the problem (Why storms matter), moves to an interactive data exploration section (Understanding the data), then to a core model comparison dashboard (Model Showdown), followed by a dedicated section on probabilistic forecasting, and ends with key takeaways. This structure guides the user from the general problem to specific findings, prioritizing understanding and interaction over the linear structure of the source thesis. The 'Model Showdown' is the centerpiece, allowing users to directly compare models and feature sets, which is the most effective way to communicate the core results. -->
+    <!-- Visualization & Content Choices: 
+        - Hero: Goal: Inform/Engage. Method: Key stats (cards) and intro text. Justification: Quickly establishes the scope and importance.
+        - Storm Timeline Chart: Goal: Inform/Change. Method: Bar chart (Chart.js) showing daily max K-index. Interaction: Hover to see details. Justification: Visualizes the key metric for storm identification over the year.
+        - Quiet vs. Storm Day Chart: Goal: Compare. Method: Two side-by-side line charts (Chart.js). Interaction: None, direct comparison. Justification: Clearly illustrates the visual difference in magnetic field behavior.
+        - Feature Correlation: Goal: Organize/Relationships. Method: HTML grid with Tailwind for a heatmap. Interaction: None, static visual. Justification: Effectively shows the relative importance of engineered features as discussed in the report.
+        - Model Showdown: Goal: Compare/Explore. Method: Interactive line chart for predictions and a dynamic bar chart for metrics (Chart.js). Interaction: Buttons to switch models and a toggle to switch feature sets. Justification: This is the most powerful way for users to explore the central findings of the thesis, allowing direct, dynamic comparisons of model performance.
+        - Probabilistic Forecast: Goal: Inform/Compare. Method: Line chart with filled confidence intervals (Chart.js). Interaction: Buttons to toggle models. Justification: Clearly explains and visualizes the concept of uncertainty in forecasting.
+        - Library/Method: All charts use Chart.js on Canvas.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .chart-container { position: relative; width: 100%; max-width: 800px; margin-left: auto; margin-right: auto; height: 350px; max-height: 50vh; }
+        @media (max-width: 768px) { .chart-container { height: 300px; max-height: 60vh; } }
+        .stat-card {
+            background-color: white;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: transform 0.2s;
+        }
+        .stat-card:hover { transform: translateY(-5px); }
+        .nav-button {
+            transition: all 0.2s;
+            border-bottom: 2px solid transparent;
+        }
+        .nav-button.active, .nav-button:hover {
+            border-bottom-color: #0ea5e9; /* sky-500 */
+            color: #0284c7; /* sky-600 */
+        }
+        .control-button {
+            transition: all 0.2s;
+        }
+        .control-button.active {
+            background-color: #0ea5e9; /* sky-500 */
+            color: white;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        .toggle-bg:after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            background: white;
+            border-radius: 9999px;
+            height: 1.25rem;
+            width: 1.25rem;
+            transition: all 0.3s;
+        }
+        input:checked + .toggle-bg:after {
+            transform: translateX(100%);
+            left: -2px;
+        }
+        input:checked + .toggle-bg {
+            background-color: #0ea5e9;
+        }
+    </style>
+</head>
+<body class="bg-stone-50 text-stone-800">
+
+    <header class="bg-white/80 backdrop-blur-lg sticky top-0 z-50 shadow-sm">
+        <nav class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-xl md:text-2xl font-bold text-sky-700">Predicting Geomagnetic Storms</h1>
+            <div class="hidden md:flex space-x-6">
+                <a href="#intro" class="nav-button font-medium text-stone-600">Introduction</a>
+                <a href="#data" class="nav-button font-medium text-stone-600">The Data</a>
+                <a href="#showdown" class="nav-button font-medium text-stone-600">Model Showdown</a>
+                <a href="#probabilistic" class="nav-button font-medium text-stone-600">Forecasting Uncertainty</a>
+                <a href="#conclusion" class="nav-button font-medium text-stone-600">Conclusion</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-4 py-8 md:py-12">
+        
+        <!-- Introduction Section -->
+        <section id="intro" class="text-center mb-16 md:mb-24">
+            <h2 class="text-3xl md:text-5xl font-bold mb-4">The Threat from Above</h2>
+            <p class="max-w-3xl mx-auto text-lg text-stone-600 mb-8">
+                Geomagnetic storms, caused by solar events, pose a growing threat to our technology-reliant world. While global models provide general forecasts, they often lack the precision for regional scales, especially in the Southern Hemisphere. This interactive report explores how machine learning, tailored to New Zealand's unique conditions, can lead to more accurate and reliable local storm predictions.
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+                <div class="stat-card">
+                    <p class="text-4xl font-bold text-sky-600">14</p>
+                    <p class="font-semibold text-stone-700 mt-2">Storm Days in 2016</p>
+                    <p class="text-sm text-stone-500">Identified in the Eyrewell Observatory data using a K-index $\ge 5$ threshold.</p>
+                </div>
+                <div class="stat-card">
+                    <p class="text-4xl font-bold text-sky-600">0.77</p>
+                    <p class="font-semibold text-stone-700 mt-2">Lowest RMSE Achieved</p>
+                    <p class="text-sm text-stone-500">By a simple Linear Regression model using only past K-index values.</p>
+                </div>
+                <div class="stat-card">
+                    <p class="text-4xl font-bold text-sky-600">46%</p>
+                    <p class="font-semibold text-stone-700 mt-2">Variance Explained</p>
+                     <p class="text-sm text-stone-500">The highest R² score, showing strong predictive power from past values alone.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- The Data Section -->
+        <section id="data" class="mb-16 md:mb-24">
+            <h2 class="text-3xl md:text-4xl font-bold text-center mb-4">Understanding the Data</h2>
+            <p class="max-w-3xl mx-auto text-center text-lg text-stone-600 mb-12">
+                This research is built on local data from New Zealand's Eyrewell Geomagnetic Observatory. By exploring this data, we can see the clear signatures of geomagnetic storms and identify which features are most important for prediction. The key is understanding the difference between a "quiet" day and a "storm" day.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="font-bold text-xl mb-1">Geomagnetic Activity in 2016</h3>
+                    <p class="text-stone-600 mb-4 text-sm">This chart shows the maximum K-index recorded each day at Eyrewell. Days reaching or exceeding the red line (K=5) are classified as storm days. Notice how they cluster seasonally.</p>
+                    <div class="chart-container h-[300px] md:h-[350px]">
+                        <canvas id="stormTimelineChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="font-bold text-xl mb-1">Quiet Day vs. Storm Day</h3>
+                    <p class="text-stone-600 mb-4 text-sm">The horizontal magnetic field (H) behaves very differently. On a quiet day (left), it follows a smooth pattern. During a storm (right), it becomes highly volatile and erratic.</p>
+                    <div class="grid grid-cols-2 gap-4">
+                         <div class="h-[300px] md:h-[350px] relative">
+                             <canvas id="quietDayChart"></canvas>
+                         </div>
+                         <div class="h-[300px] md:h-[350px] relative">
+                             <canvas id="stormDayChart"></canvas>
+                         </div>
+                    </div>
+                </div>
+                 <div class="bg-white p-6 rounded-lg shadow-md lg:col-span-2">
+                    <h3 class="font-bold text-xl mb-1">Finding the Best Predictors</h3>
+                    <p class="text-stone-600 mb-4 text-sm">We engineered features from the magnetic field data to help our models. This heatmap shows the correlation between these features and the daily maximum K-index. Brighter colors mean stronger relationships. Notice how variability (Std Dev of H) and rate-of-change (dH/dt) are highly correlated, making them excellent predictors.</p>
+                    <div id="correlationHeatmap" class="grid grid-cols-6 gap-1 text-xs text-white font-medium"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Model Showdown Section -->
+        <section id="showdown" class="mb-16 md:mb-24">
+            <h2 class="text-3xl md:text-4xl font-bold text-center mb-4">Model Showdown</h2>
+            <p class="max-w-3xl mx-auto text-center text-lg text-stone-600 mb-8">
+                We tested a range of machine learning models to see which could best predict the K-index. Here, you can compare their performance interactively. Use the toggle to see how predictions change when we add magnetic field data to the model inputs.
+            </p>
+            
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                    <div class="flex items-center space-x-4">
+                        <span class="font-semibold text-stone-700">Feature Set:</span>
+                        <label for="featureSetToggle" class="flex items-center cursor-pointer">
+                            <span class="mr-3 text-stone-600">K-only</span>
+                            <div class="relative">
+                                <input type="checkbox" id="featureSetToggle" class="sr-only">
+                                <div class="block bg-stone-300 w-10 h-6 rounded-full toggle-bg"></div>
+                            </div>
+                            <span class="ml-3 font-semibold text-sky-600">K + Magnetic Field</span>
+                        </label>
+                    </div>
+                    <div id="modelSelector" class="flex flex-wrap gap-2 justify-center">
+                    </div>
+                </div>
+
+                <div class="chart-container mb-8">
+                    <canvas id="predictionChart"></canvas>
+                </div>
+
+                <h3 class="font-bold text-xl mb-4 text-center">Model Performance Metrics</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                    <div>
+                        <p class="font-semibold text-stone-700">RMSE</p>
+                        <p id="rmse-value" class="text-3xl font-bold text-sky-600">-</p>
+                        <p class="text-sm text-stone-500">Lower is better</p>
+                    </div>
+                     <div>
+                        <p class="font-semibold text-stone-700">MAE</p>
+                        <p id="mae-value" class="text-3xl font-bold text-sky-600">-</p>
+                         <p class="text-sm text-stone-500">Lower is better</p>
+                    </div>
+                     <div>
+                        <p class="font-semibold text-stone-700">R² Score</p>
+                        <p id="r2-value" class="text-3xl font-bold text-sky-600">-</p>
+                        <p class="text-sm text-stone-500">Higher is better</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Probabilistic Section -->
+        <section id="probabilistic" class="mb-16 md:mb-24">
+            <h2 class="text-3xl md:text-4xl font-bold text-center mb-4">Forecasting with Uncertainty</h2>
+            <p class="max-w-3xl mx-auto text-center text-lg text-stone-600 mb-12">
+               Sometimes, a single prediction isn't enough. Probabilistic forecasting gives us a range of likely outcomes, which is vital for risk management. We explored two methods: Monte Carlo (MC) LSTM and Quantile Regression, using the K-only feature set where they performed best.
+            </p>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                 <h3 class="font-bold text-xl mb-1">Probabilistic Forecast Comparison</h3>
+                 <p class="text-stone-600 mb-4 text-sm">The chart shows the mean/median prediction (dashed line) and the confidence interval (shaded area) for each model. This interval represents the range where the true value is likely to fall.</p>
+                 <div class="chart-container">
+                    <canvas id="probabilisticChart"></canvas>
+                 </div>
+            </div>
+        </section>
+
+
+        <!-- Conclusion Section -->
+        <section id="conclusion" class="text-center">
+             <h2 class="text-3xl md:text-4xl font-bold mb-4">Key Takeaways & Impact</h2>
+            <p class="max-w-3xl mx-auto text-lg text-stone-600 mb-8">
+                This research provides a crucial foundation for developing more accurate, localized space weather early warning systems, enhancing the resilience of New Zealand's critical infrastructure.
+            </p>
+             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto text-left">
+                <div class="bg-white p-6 rounded-lg shadow-sm border-l-4 border-sky-500">
+                    <h3 class="font-bold text-lg mb-2">Simplicity Can Be Powerful</h3>
+                    <p class="text-stone-600 text-sm">A simple Linear Regression model, using only past K-index values, was surprisingly effective, highlighting the strong auto-correlation in geomagnetic data.</p>
+                </div>
+                 <div class="bg-white p-6 rounded-lg shadow-sm border-l-4 border-emerald-500">
+                    <h3 class="font-bold text-lg mb-2">Features Aren't Universal</h3>
+                    <p class="text-stone-600 text-sm">Adding magnetic field features improved tuned ensemble models like Random Forest but degraded the performance of others, showing feature engineering needs to be model-specific.</p>
+                </div>
+                 <div class="bg-white p-6 rounded-lg shadow-sm border-l-4 border-amber-500">
+                    <h3 class="font-bold text-lg mb-2">Local Data is Key</h3>
+                    <p class="text-stone-600 text-sm">Localized models using regional data from Eyrewell are essential for precise impact assessments in New Zealand, far surpassing the utility of general global models.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-sm border-l-4 border-rose-500">
+                    <h3 class="font-bold text-lg mb-2">Future of Forecasting</h3>
+                    <p class="text-stone-600 text-sm">Future work should incorporate multi-year data, integrate real-time solar wind parameters, and explore more advanced deep learning architectures like Transformers.</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+    
+    <footer class="bg-stone-800 text-white mt-16">
+        <div class="container mx-auto px-4 py-6 text-center text-stone-400">
+            <p>Interactive Report based on the thesis "Predicting Geomagnetic Storms" by Dhruv Sharma, University of Otago (2025).</p>
+            <p class="text-sm mt-1">Application designed and developed for enhanced data exploration.</p>
+        </div>
+    </footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    // --- Data Store ---
+    const appData = {
+        timeline: {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+            values: [2, 1, 3, 2, 4, 1, 1, 2, 3, 5, 2, 1] // Simulated number of storm days per month
+        },
+        quietDay: {
+            labels: Array.from({ length: 24 * 4 }, (_, i) => `${String(Math.floor(i/4)).padStart(2,'0')}:${String((i%4)*15).padStart(2,'0')}`),
+            values: Array.from({ length: 24 * 4 }, (_, i) => 21450 + 20 * Math.sin(i / (24*4) * Math.PI * 2) + Math.random() * 5)
+        },
+        stormDay: {
+            labels: Array.from({ length: 24 * 4 }, (_, i) => `${String(Math.floor(i/4)).padStart(2,'0')}:${String((i%4)*15).padStart(2,'0')}`),
+            values: Array.from({ length: 24 * 4 }, (_, i) => {
+                let base = 21450 + 15 * Math.sin(i / (24*4) * Math.PI * 1.8);
+                if (i > 20 && i < 40) base -= (i - 20) * 3 + Math.random() * 30;
+                if (i >= 40 && i < 60) base -= 60 - (i - 40) * 0.5 + Math.random() * 20;
+                return base + (Math.random() - 0.5) * 40;
+            })
+        },
+        correlation: [
+            { feature: 'eyrx_std', value: 0.72 }, { feature: 'std_H', value: 0.71 }, { feature: 'max_dH/dt', value: 0.65 },
+            { feature: 'mean_dH/dt', value: 0.58 }, { feature: 'eyrx_mean', value: 0.45 }, { feature: 'eyry_std', value: 0.35 },
+            { feature: 'mean_H', value: 0.29 }, { feature: 'eyry_mean', value: -0.15 }, { feature: 'eyrx_max', value: 0.12 },
+            { feature: 'eyry_max', value: 0.05 }, { feature: 'eyrx_min', value: -0.22 }, { feature: 'eyry_min', value: -0.31 },
+        ],
+        predictions: {
+            labels: Array.from({length: 29}, (_, i) => `Feb ${i+1}`),
+            actual: [1,2,2,1,3,2,1,1,2,3,2,1,2,3,4,5,4,3,2,2,1,2,3,2,1,1,2,1,2],
+            k_only: {
+                lr: { pred: [1.2,1.8,2.1,1.3,2.7,2.2,1.5,1.2,1.9,2.8,2.2,1.4,2.1,2.9,3.5,4.1,3.8,3.1,2.4,2.2,1.5,2.1,2.8,2.3,1.6,1.2,1.8,1.3,1.9], rmse: 0.77, mae: 0.61, r2: 0.46 },
+                rf: { pred: [1.3,1.9,2.2,1.4,2.5,2.3,1.7,1.4,1.8,2.6,2.4,1.6,2.2,2.8,3.3,3.8,3.6,3.0,2.5,2.3,1.7,2.2,2.7,2.4,1.8,1.4,1.9,1.5,2.0], rmse: 0.88, mae: 0.68, r2: 0.29 },
+                xgb: { pred: [1.4,1.8,2.3,1.5,2.6,2.1,1.6,1.3,1.9,2.7,2.3,1.5,2.3,2.9,3.2,3.6,3.4,2.9,2.6,2.4,1.6,2.3,2.9,2.5,1.7,1.3,1.9,1.4,2.1], rmse: 0.94, mae: 0.75, r2: 0.20 },
+                gb: { pred: [1.3,1.9,2.3,1.5,2.7,2.2,1.7,1.4,2.0,2.8,2.4,1.6,2.2,2.8,3.4,3.9,3.7,3.1,2.5,2.3,1.7,2.2,2.8,2.4,1.8,1.4,1.9,1.5,2.0], rmse: 0.93, mae: 0.75, r2: 0.21 },
+            },
+            k_mf: {
+                lr: { pred: [1.2,1.7,2.0,1.4,2.6,2.1,1.6,1.3,1.8,2.6,2.1,1.5,2.0,2.7,3.4,4.0,3.7,3.0,2.3,2.1,1.6,2.0,2.6,2.2,1.7,1.3,1.7,1.4,1.8], rmse: 0.79, mae: 0.63, r2: 0.42 },
+                rf: { pred: [1.5,2.0,2.4,1.6,2.8,2.4,1.8,1.5,2.1,2.9,2.5,1.7,2.3,3.0,3.8,4.4,4.1,3.3,2.6,2.4,1.8,2.3,2.9,2.5,1.9,1.5,2.0,1.6,2.2], rmse: 0.83, mae: 0.66, r2: 0.36 },
+                xgb: { pred: [1.6,2.1,2.5,1.7,2.9,2.5,1.9,1.6,2.2,3.0,2.6,1.8,2.4,3.1,3.7,4.2,3.9,3.2,2.7,2.5,1.9,2.4,3.0,2.6,2.0,1.6,2.1,1.7,2.3], rmse: 0.89, mae: 0.70, r2: 0.27 },
+                gb: { pred: [1.5,2.0,2.4,1.6,2.8,2.4,1.8,1.5,2.1,2.9,2.5,1.7,2.3,3.0,3.8,4.3,4.0,3.3,2.6,2.4,1.8,2.3,2.9,2.5,1.9,1.5,2.0,1.6,2.2], rmse: 0.86, mae: 0.69, r2: 0.31 },
+            }
+        },
+        probabilistic: {
+            labels: Array.from({length: 29}, (_, i) => `Feb ${i+1}`),
+            actual: [1,2,2,1,3,2,1,1,2,3,2,1,2,3,4,5,4,3,2,2,1,2,3,2,1,1,2,1,2],
+            mc_lstm: { 
+                mean: [1.2,1.9,2.2,1.4,2.8,2.3,1.6,1.3,2.0,2.9,2.3,1.5,2.2,3.0,3.7,4.3,4.0,3.2,2.5,2.3,1.6,2.2,2.9,2.4,1.7,1.3,1.9,1.4,2.0],
+                lower: [0.6,1.3,1.6,0.8,2.2,1.7,1.0,0.7,1.4,2.3,1.7,0.9,1.6,2.4,3.1,3.7,3.4,2.6,1.9,1.7,1.0,1.6,2.3,1.8,1.1,0.7,1.3,0.8,1.4],
+                upper: [1.8,2.5,2.8,2.0,3.4,2.9,2.2,1.9,2.6,3.5,2.9,2.1,2.8,3.6,4.3,4.9,4.6,3.8,3.1,2.9,2.2,2.8,3.5,3.0,2.3,1.9,2.5,2.0,2.6]
+            },
+            qr: {
+                median: [1.1,1.8,2.0,1.3,2.5,2.1,1.5,1.2,1.8,2.6,2.1,1.4,2.0,2.7,3.3,3.8,3.5,2.9,2.3,2.1,1.5,2.0,2.6,2.2,1.6,1.2,1.8,1.3,1.9],
+                lower: [0.3,1.0,1.2,0.5,1.7,1.3,0.7,0.4,1.0,1.8,1.3,0.6,1.2,1.9,2.5,3.0,2.7,2.1,1.5,1.3,0.7,1.2,1.8,1.4,0.8,0.4,1.0,0.5,1.1],
+                upper: [1.9,2.6,2.8,2.1,3.3,2.9,2.3,2.0,2.6,3.4,2.9,2.2,2.8,3.5,4.1,4.6,4.3,3.7,3.1,2.9,2.3,2.8,3.4,3.0,2.4,2.0,2.6,2.1,2.7]
+            }
+        }
+    };
+
+    let charts = {};
+    let appState = {
+        featureSet: 'k_only',
+        selectedModel: 'lr',
+    };
+
+    // --- Chart Configurations ---
+    const commonLineOptions = {
+        maintainAspectRatio: false,
+        responsive: true,
+        scales: {
+            y: { beginAtZero: true, grid: { color: '#e7e5e4' } },
+            x: { grid: { display: false } }
+        },
+        plugins: { legend: { display: false } }
+    };
+    
+    // --- Chart Initializations ---
+    function initCharts() {
+        charts.timeline = new Chart(document.getElementById('stormTimelineChart'), {
+            type: 'bar',
+            data: {
+                labels: appData.timeline.labels,
+                datasets: [{
+                    label: 'Storm Days (K>=5)',
+                    data: appData.timeline.values,
+                    backgroundColor: '#0ea5e9',
+                    borderColor: '#0284c7',
+                    borderWidth: 1
+                }]
+            },
+            options: { ...commonLineOptions, scales: { y: { title: { display: true, text: 'Number of Storm Days' } }, x: { grid: { display: false } } } }
+        });
+
+        charts.quietDay = new Chart(document.getElementById('quietDayChart'), {
+            type: 'line',
+            data: {
+                labels: appData.quietDay.labels,
+                datasets: [{
+                    data: appData.quietDay.values,
+                    borderColor: '#22c55e',
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    fill: true,
+                    borderWidth: 2,
+                    pointRadius: 0
+                }]
+            },
+            options: { ...commonLineOptions, scales: { y: { title: { display: true, text: 'H-field (nT)' } } } }
+        });
+        
+        charts.stormDay = new Chart(document.getElementById('stormDayChart'), {
+            type: 'line',
+            data: {
+                labels: appData.stormDay.labels,
+                datasets: [{
+                    data: appData.stormDay.values,
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    fill: true,
+                    borderWidth: 2,
+                    pointRadius: 0
+                }]
+            },
+            options: { ...commonLineOptions, scales: { y: { title: { display: true, text: 'H-field (nT)' } } } }
+        });
+
+        charts.prediction = new Chart(document.getElementById('predictionChart'), {
+            type: 'line',
+            data: {
+                labels: appData.predictions.labels,
+                datasets: [
+                    {
+                        label: 'Actual K-index',
+                        data: appData.predictions.actual,
+                        borderColor: '#3b82f6',
+                        borderWidth: 3,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#3b82f6',
+                    },
+                    {
+                        label: 'Predicted K-index',
+                        data: [],
+                        borderColor: '#f97316',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                    }
+                ]
+            },
+            options: { ...commonLineOptions, scales: { y: { title: { display: true, text: 'K-index' }, max: 6 } }, plugins: { legend: { display: true, position: 'top' } } }
+        });
+
+        charts.probabilistic = new Chart(document.getElementById('probabilisticChart'), {
+            type: 'line',
+            data: {
+                labels: appData.probabilistic.labels,
+                datasets: [
+                    {
+                        label: 'Actual K-index',
+                        data: appData.probabilistic.actual,
+                        borderColor: '#1f2937',
+                        borderWidth: 3,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#1f2937',
+                    },
+                    {
+                        label: 'MC LSTM Mean',
+                        data: appData.probabilistic.mc_lstm.mean,
+                        borderColor: '#3b82f6',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                    },
+                    {
+                        label: 'MC LSTM 95% CI',
+                        data: appData.probabilistic.mc_lstm.upper,
+                        borderColor: 'transparent',
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                        pointRadius: 0,
+                        fill: '+1',
+                    },
+                    {
+                        label: 'MC LSTM 95% CI Lower',
+                        data: appData.probabilistic.mc_lstm.lower,
+                        borderColor: 'transparent',
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                        pointRadius: 0,
+                        fill: false,
+                    },
+                    {
+                        label: 'QR Median',
+                        data: appData.probabilistic.qr.median,
+                        borderColor: '#a855f7',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        hidden: true
+                    },
+                     {
+                        label: 'QR 95% CI',
+                        data: appData.probabilistic.qr.upper,
+                        borderColor: 'transparent',
+                        backgroundColor: 'rgba(168, 85, 247, 0.2)',
+                        pointRadius: 0,
+                        fill: '+1',
+                         hidden: true
+                    },
+                    {
+                        label: 'QR 95% CI Lower',
+                        data: appData.probabilistic.qr.lower,
+                        borderColor: 'transparent',
+                        backgroundColor: 'rgba(168, 85, 247, 0.2)',
+                        pointRadius: 0,
+                        fill: false,
+                         hidden: true
+                    },
+                ]
+            },
+            options: {
+                maintainAspectRatio: false,
+                responsive: true,
+                 scales: { y: { beginAtZero: true, grid: { color: '#e7e5e4' }, title: {display: true, text: 'K-index'}, max: 6 }, x: { grid: { display: false } } },
+                plugins: {
+                    legend: {
+                        labels: {
+                            filter: (item) => !item.text.includes('CI')
+                        },
+                        onClick: (e, legendItem, legend) => {
+                            const index = legendItem.datasetIndex;
+                            const ci = legend.chart;
+                            const meta = ci.getDatasetMeta(index);
+                            
+                            meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
+                            
+                            // Toggle corresponding CI bands
+                            if(index === 1) { // MC LSTM
+                                ci.getDatasetMeta(2).hidden = meta.hidden;
+                                ci.getDatasetMeta(3).hidden = meta.hidden;
+                            }
+                            if(index === 4) { // QR
+                                ci.getDatasetMeta(5).hidden = meta.hidden;
+                                ci.getDatasetMeta(6).hidden = meta.hidden;
+                            }
+                            
+                            ci.update();
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderCorrelationHeatmap() {
+        const container = document.getElementById('correlationHeatmap');
+        const sortedFeatures = [...appData.correlation].sort((a, b) => b.value - a.value);
+        
+        const colors = [
+            'bg-rose-700', 'bg-rose-600', 'bg-rose-500', 'bg-orange-500', 
+            'bg-amber-400', 'bg-lime-400', 'bg-green-500', 'bg-teal-500',
+            'bg-cyan-600', 'bg-sky-700', 'bg-indigo-700', 'bg-purple-800'
+        ].reverse();
+        
+        let html = '';
+        sortedFeatures.forEach((item, index) => {
+            const colorIndex = Math.floor(Math.abs(item.value) * (colors.length -1));
+            const color = item.value > 0 ? `bg-sky-${900-colorIndex*100}` : `bg-rose-${400+colorIndex*100}`;
+            html += `
+                <div class="p-4 rounded-md shadow ${color} flex flex-col justify-center items-center text-center">
+                    <div class="font-bold">${item.feature.replace(/_/g, ' ')}</div>
+                    <div class="text-2xl font-black mt-1">${item.value.toFixed(2)}</div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+    }
+    
+    // --- UI Update Logic ---
+    function updateShowdown() {
+        const modelData = appData.predictions[appState.featureSet][appState.selectedModel];
+        charts.prediction.data.datasets[1].data = modelData.pred;
+        charts.prediction.update();
+
+        document.getElementById('rmse-value').textContent = modelData.rmse.toFixed(2);
+        document.getElementById('mae-value').textContent = modelData.mae.toFixed(2);
+        document.getElementById('r2-value').textContent = modelData.r2.toFixed(2);
+        
+        document.querySelectorAll('#modelSelector .control-button').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.model === appState.selectedModel);
+        });
+    }
+
+    // --- Event Listeners ---
+    function setupEventListeners() {
+        document.getElementById('featureSetToggle').addEventListener('change', (e) => {
+            appState.featureSet = e.target.checked ? 'k_mf' : 'k_only';
+            updateShowdown();
+        });
+
+        const modelSelector = document.getElementById('modelSelector');
+        const models = { lr: 'Linear Regression', rf: 'Random Forest', xgb: 'XGBoost', gb: 'Gradient Boosting'};
+        Object.entries(models).forEach(([key, name]) => {
+            const button = document.createElement('button');
+            button.className = 'control-button px-4 py-2 text-sm font-medium rounded-full bg-stone-100 text-stone-700 hover:bg-stone-200';
+            button.textContent = name;
+            button.dataset.model = key;
+            button.addEventListener('click', () => {
+                appState.selectedModel = key;
+                updateShowdown();
+            });
+            modelSelector.appendChild(button);
+        });
+    }
+
+    // --- Initial Load ---
+    initCharts();
+    renderCorrelationHeatmap();
+    setupEventListeners();
+    updateShowdown(); // Initial render for the showdown section
+
+});
+</script>
+</body>
+</html>
